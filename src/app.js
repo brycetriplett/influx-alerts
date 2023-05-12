@@ -1,12 +1,15 @@
 require('module-alias/register');
 
-const { config } = require('dotenv');
-
 const express = require('express');
 const app = express();
 app.use(express.json());
 
 const { postAlert } = require('@root/controllers/alertsController');
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 app.post('/alerts', postAlert);
 

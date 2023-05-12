@@ -1,3 +1,6 @@
+const dotenv = require('dotenv');
+const result = dotenv.config();
+
 const axios = require('axios');
 
 
