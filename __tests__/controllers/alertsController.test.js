@@ -1,119 +1,83 @@
 const { postAlert } = require('@root/controllers/alertsController');
 const sendToPushover = require('@root/services/sendToPushover');
-const httpMocks = require('node-mocks-http');
+const transformAlertData = require('@root/utils/transformAlertData');
+
 
 jest.mock('@root/services/sendToPushover');
+jest.mock('@root/utils/transformAlertData');
 
 describe('postAlert', () => {
-  let req, res, next;
+  let req;
+  let res;
+  let next;
 
   beforeEach(() => {
-    req = httpMocks.createRequest();
-    res = httpMocks.createResponse();
-    next = jest.fn();
-    sendToPushover.mockClear();
-  });
-
-  describe('postAlert', () => {
-    // ...rest of your setup...
-  
-    test('validates alert data - valid case', async () => {
-      // Set up your req.body with valid alert data here
-      req.body = {
-        _check_id: '0a79db80e1d83000',
-        _check_name: 'testing',
+    req = {
+      body: {
+        _check_name: 'test check',
         _level: 'crit',
-        _measurement: 'notifications',
-        _message: 'Check: testing is: crit',
-        _notification_endpoint_id: '0b2c74b32b490000',
-        _notification_endpoint_name: 'express backend',
-        _notification_rule_id: '09500bc829b05000',
-        _notification_rule_name: 'critical',
-        _source_measurement: 'snmp',
-        _source_timestamp: 1683658080000000000,
-        _start: '2023-05-09T18:47:00Z',
-        _status_timestamp: 1683658080000000000,
-        _stop: '2023-05-09T18:49:00Z',
-        _time: '2023-05-09T18:49:00Z',
-        _type: 'threshold',
-        _version: 1,
-        agent_host: '172.16.2.158',
-        ambient_temperature: 32,
-        host: 'influxdb',
-      };
-  
-      await postAlert(req, res, next);
-  
-      // Check that sendToPushover was called
-      expect(sendToPushover).toHaveBeenCalled();
-  
-      // Check that next was not called
-      expect(next).not.toHaveBeenCalled();
-    });
-  
-    test('validates alert data - invalid case', async () => {
-      // Set up your req.body with invalid alert data here
-      req.body = {
-        _check_id: '0a79db80e1d83000',
-        _measurement: 'notifications',
-        _notification_endpoint_id: '0b2c74b32b490000',
-        _notification_endpoint_name: 'express backend',
-        _notification_rule_id: '09500bc829b05000',
-        _notification_rule_name: 'critical',
-        _source_measurement: 'snmp',
-        _source_timestamp: 1683658080000000000,
-        _start: '2023-05-09T18:47:00Z',
-        _status_timestamp: 1683658080000000000,
-        _stop: '2023-05-09T18:49:00Z',
-        _time: '2023-05-09T18:49:00Z',
-        _type: 'threshold',
-        _version: 1,
-        agent_host: '172.16.2.158',
-        ambient_temperature: 32,
-        host: 'influxdb',
-      };
-  
-      await postAlert(req, res, next);
-  
-      // Check that sendToPushover was not called
-      expect(sendToPushover).not.toHaveBeenCalled();
-  
-      // Check that next was called with an error
-      expect(next).toHaveBeenCalledWith(new Error('Invalid alert data format.'));
-    });
+        _message: 'test message',
+        test_data1: '100',
+        test_data2: '200'
+      },
+    };
+    
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    next = jest.fn();
   });
 
-  test('transforms alert data', async () => {
-    // Set up your req.body with specific alert data here
-    req.body = { /* specific alert data */ };
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should send the alert to Pushover and respond with 200 if successful', async () => {
+    const transformedData = `ALERT\n` +
+      `test check has reached level: crit\n` +
+      `message: test message\n` +
+      `test_data1: 100\n` +
+      `test_data2: 200\n`;
+  
+    transformAlertData.mockReturnValue(transformedData);
+    sendToPushover.mockResolvedValue('Pushover response');
+  
+    await postAlert(req, res, next);
+  
+    expect(transformAlertData).toHaveBeenCalledWith(req.body);
+    expect(sendToPushover).toHaveBeenCalledWith(transformedData);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Alert Forwarded' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  
+  it('should call next with an error if the alert data is invalid', async () => {
+    const validationError = new Error('Invalid alert data format.');
+
+    req = {
+      body: {},
+    };
 
     await postAlert(req, res, next);
 
-    // Assertions here...
+    expect(next).toHaveBeenCalledWith(validationError);
+    expect(sendToPushover).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
-  test('sends alert to Pushover', async () => {
-    // Set up your req.body with specific alert data here
-    req.body = { /* specific alert data */ };
+  it('should call next with an error if forwarding the message fails', async () => {
+    const error = new Error('Failed to forward message');
+    sendToPushover.mockRejectedValueOnce(error);
 
     await postAlert(req, res, next);
 
-    // Check that sendToPushover was called with the correct arguments
-    expect(sendToPushover).toHaveBeenCalledWith(/* expected transformed data */);
-  });
-
-  test('handles errors when sending alert to Pushover', async () => {
-    // Set up your req.body with specific alert data here
-    req.body = { /* specific alert data */ };
-
-    // Mock sendToPushover to throw an error
-    sendToPushover.mockImplementation(() => {
-      throw new Error();
-    });
-
-    await postAlert(req, res, next);
-
-    // Check that next was called with an error
-    expect(next).toHaveBeenCalledWith(new Error('Failed to forward message'));
+    expect(transformAlertData).toHaveBeenCalledWith(req.body);
+    expect(sendToPushover).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(error);
   });
 });

@@ -36,7 +36,7 @@ test('valid alert is accepted by the schema', () => {
     expect(valid).toBeTruthy();
   });
 
-  test('invalid alert is rejected by the schema', () => {
+test('invalid alert is rejected by the schema', () => {
     const validAlert = {
       _check_id: '0a79db80e1d83000',
       _measurement: 'notifications',
