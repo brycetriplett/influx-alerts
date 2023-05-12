@@ -6,11 +6,12 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const alertsController = require('@root/controllers/alertsController');
+const { postAlert } = require('@root/controllers/alertsController');
 
-app.post('/alerts', alertsController.postAlert);
+app.post('/alerts', postAlert);
 
 app.use((err, req, res, next) => {
+  console.log(err);
   if (err.message === 'Invalid alert data format.') {
     return res.status(400).json({ message: err.message, errors: validateAlert.errors });
   }
