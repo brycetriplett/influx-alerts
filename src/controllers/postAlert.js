@@ -28,6 +28,4 @@ const postAlert = async (req, res, next) => {
     }
   };
 
-module.exports = {
-    postAlert
-};
+module.exports = postAlert;

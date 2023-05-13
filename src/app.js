@@ -4,7 +4,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const { postAlert } = require('@root/controllers/alertsController');
+const postAlert = require('@root/controllers/postAlert');
 
 
 // enables us to disable alerting for one hour, to be triggered by a slack command
