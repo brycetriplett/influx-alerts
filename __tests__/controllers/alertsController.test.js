@@ -1,4 +1,4 @@
-const { postAlert } = require('@root/controllers/alertsController');
+const postAlert = require('@root/controllers/postAlert');
 const sendToPushover = require('@root/services/sendToPushover');
 const transformAlertData = require('@root/utils/transformAlertData');
 

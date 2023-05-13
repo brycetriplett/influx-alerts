@@ -38,7 +38,7 @@ app.get('/block-posts', (req, res) => {
     blockPostTimeout = null;
   }, blockTime);
 
-  res.json({ message: `Posting is blocked for ${blockTime / 60 / 1000} hour(s).` });
+  res.json({ message: `Posting is blocked for ${blockTime / 60 / 1000} minute(s).` });
 });
 
 
