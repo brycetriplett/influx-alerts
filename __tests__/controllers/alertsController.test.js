@@ -26,7 +26,14 @@ describe('postAlert', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
-    next = jest.fn();
+
+    next = jest.fn(),
+
+    transformedData = `ALERT\n` +
+      `test check has reached level: crit\n` +
+      `message: test message\n` +
+      `test_data1: 100\n` +
+      `test_data2: 200\n`;
   });
 
   afterEach(() => {
@@ -34,12 +41,6 @@ describe('postAlert', () => {
   });
 
   it('should send the alert to Pushover and respond with 200 if successful', async () => {
-    const transformedData = `ALERT\n` +
-      `test check has reached level: crit\n` +
-      `message: test message\n` +
-      `test_data1: 100\n` +
-      `test_data2: 200\n`;
-  
     transformAlertData.mockReturnValue(transformedData);
     sendToPushover.mockResolvedValue('Pushover response');
   
@@ -70,14 +71,17 @@ describe('postAlert', () => {
 
   it('should call next with an error if forwarding the message fails', async () => {
     const error = new Error('Failed to forward message');
+  
+    transformAlertData.mockReturnValue(transformedData);
     sendToPushover.mockRejectedValueOnce(error);
-
+  
     await postAlert(req, res, next);
-
+  
     expect(transformAlertData).toHaveBeenCalledWith(req.body);
-    expect(sendToPushover).toHaveBeenCalled();
+    expect(sendToPushover).toHaveBeenCalledWith(transformedData);
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith(error);
   });
 });
