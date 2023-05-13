@@ -10,6 +10,7 @@ const { postAlert } = require('@root/controllers/alertsController');
 // enables us to disable alerting for one hour, to be triggered by a slack command
 let blockPost = false;
 let blockPostTimeout = null;
+let blockUntil = null;
 
 
 app.use((req, res, next) => {
@@ -24,23 +25,43 @@ app.use((req, res, next) => {
 
 app.get('/block-posts', (req, res) => {
   blockPost = true;
+  
+  // Default to 60 minutes if no valid time is specified
+  let blockTime = isNaN(req.query.time) ? 60 : parseInt(req.query.time, 10);
+  blockTime = blockTime * 60 * 1000; // Convert minutes to milliseconds
+
+  blockUntil = Date.now() + blockTime;
+
   blockPostTimeout = setTimeout(() => {
     blockPost = false;
+    blockUntil = null;
     blockPostTimeout = null;
-  }, 60 * 60 * 1000); // Unblock posts after 1 hour
+  }, blockTime);
 
-  res.json({ message: 'Posting is blocked for 1 hour.' });
+  res.json({ message: `Posting is blocked for ${blockTime / 60 / 1000} hour(s).` });
 });
 
 
 app.get('/unblock-posts', (req, res) => {
   blockPost = false;
+  blockUntil = null;
+  
   if (blockPostTimeout) {
     clearTimeout(blockPostTimeout);
     blockPostTimeout = null;
   }
   
   res.json({ message: 'Posting is no longer blocked.' });
+});
+
+
+app.get('/time-left', (req, res) => {
+  if (!blockPost) {
+    res.json({ message: 'Posting is not currently blocked.' });
+  } else {
+    let timeLeft = Math.max((blockUntil - Date.now()) / 1000, 0);
+    res.json({ message: `Posting is blocked for approximately ${Math.ceil(timeLeft / 60)} more minute(s).` });
+  }
 });
 
 
